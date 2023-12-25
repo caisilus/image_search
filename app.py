@@ -5,3 +5,4 @@ uploaded_file = st.file_uploader("Choose an image...", type=["png", "jpg", "jpeg
 if uploaded_file is not None:
     image = Image.open(uploaded_file).convert("RGB")
     image = ImageOps.exif_transpose(image)
+    st.image(image, caption='Sunrise by the mountains')
