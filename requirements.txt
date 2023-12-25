@@ -3,6 +3,3 @@ pillow
 numpy
 matplotlib
 opencv-python
-scipy
-pickle
-pandas
