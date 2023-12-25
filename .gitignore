@@ -2,3 +2,8 @@
 coco128/
 pascal/
 *.tar
+image_database.csv
+pascal_descriptors.npz
+pascal_200k_descriptors.npy
+training_descriptors.npy
+tests/
