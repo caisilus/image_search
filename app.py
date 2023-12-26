@@ -123,7 +123,7 @@ def init_kmeans():
 def init_clip():
     data = pd.read_csv('image_database_clip.csv')
     X = np.vstack(data["vector"].values)
-    clip_neighbours = NearestNeighbors(metric='cosine', algorithm='brute').astype()
+    clip_neighbours = NearestNeighbors(metric='cosine', algorithm='brute').astype(np.object0)
     clip_neighbours.fit(X)
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model, preprocess = clip.load("ViT-B/32", device=device)
