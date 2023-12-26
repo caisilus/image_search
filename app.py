@@ -10,6 +10,14 @@ import pandas as pd
 from scipy.spatial.distance import cosine
 from sklearn.neighbors import NearestNeighbors
 import random
+import torch
+import clip
+
+def load_model_from(filename):
+    with open(filename, 'rb') as f:
+        model = pickle.load(f)
+
+    return model
 
 def get_image_descriptors(gray):
     _, descriptors = sift.detectAndCompute(gray, None)
@@ -50,14 +58,29 @@ def vectorize_image_from_file(model, image_file):
     hist_data = get_normalized_hist(clusters)
     return hist_data
 
-def find_similar(model, image_filename, number):
-    input_vector = vectorize_image_from_file(model, image_filename)
-    distances, indices = model.kneighbors([input_vector], n_neighbors=number)
+def load_image_for_clip(image_filename):
+    return preprocess(Image.open(image_filename)).unsqueeze(0).to(device)
+def encode_with_clip(model, image_filename):
+    image = load_image_for_clip(image_filename)
+    image_features = model.encode_image(image)
+    image_features = image_features.cpu().detach().numpy().squeeze().astype(np.float64)
+    return image_features
+
+def find_similar(model_type, image_filename, number):
+    indices = []
+    if model_type == "KMeans":
+        input_vector = vectorize_image_from_file(kmeans_model, image_filename)
+        distances, indices = kmeans_neighbours.kneighbors([input_vector], n_neighbors=number)
+    else:
+        indices = encode_with_clip(clip_model, image_filename)
+
     pics_pathes = data.loc[indices[0]]["image_path"]
     return [Image.open(image_path).convert("RGB") for image_path in pics_pathes]
 
 
 def main_page():
+    model_type = st.radio("Choose model",["KMeans", "CLIP"])
+
     uploaded_file = st.file_uploader("Choose an image...", type=["png", "jpg", "jpeg", "webp", "tiff"])
     if uploaded_file is None:
         return
@@ -67,22 +90,48 @@ def main_page():
 
     st.divider()
 
-    similar_images = find_similar(neighbours_model, uploaded_file, neighbors_number)
+    similar_images = find_similar(model_type, uploaded_file.name, neighbors_number)
+    # similar_images = [image] * neighbors_number
     st.title('Similar images:')
-    cols = st.columns(neighbors_number)
-    for i in range(neighbors_number):
-        with cols[i]:
-            st.image(similar_images[i])
+    row_num = 2
+    col_num = neighbors_number // row_num
+    rows = []
+    for i in range(row_num):
+        rows.append(st.columns(col_num))
+
+    for i in range(row_num):
+        for j in range(col_num):
+                with rows[i][j]:
+                    st.image(similar_images[i * col_num + j])
 
 
 sift = cv.SIFT_create()
 n_clusters = 2048
 neighbors_number = 10
 
-data = pd.read_csv()
-X = np.vstack(data["vector"].values)
+def init_kmeans():
+    data = pd.read_csv('image_database.csv')
+    X = np.vstack(data["vector"].values).astype(np.object0)
+    kmeans_model = load_model_from('kmeans.pickle')
+    arr_X = [None] * X.shape[0]
+    for i in range(X.shape[0]):
+        arr_X[i] = (np.fromstring(X[i][0][1:-1], sep=', '))
+    kmeans_neighbours = NearestNeighbors(metric='cosine', algorithm='brute')
+    kmeans_neighbours.fit(arr_X)
+    return kmeans_model, kmeans_neighbours, data
 
-neighbours_model = NearestNeighbors(metric='cosine', algorithm='brute')
-neighbours_model.fit(X)
+def init_clip():
+    data = pd.read_csv('image_database_clip.csv')
+    X = np.vstack(data["vector"].values)
+    clip_neighbours = NearestNeighbors(metric='cosine', algorithm='brute').astype()
+    clip_neighbours.fit(X)
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    model, preprocess = clip.load("ViT-B/32", device=device)
+    return clip_neighbours, model, preprocess, device
+
+
+kmeans_model, kmeans_neighbours, data = init_kmeans()
+
+clip_neighbours, clip_model, preprocess, device = init_clip(data)
 
 main_page()
