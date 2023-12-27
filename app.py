@@ -111,7 +111,7 @@ neighbors_number = 10
 
 def init_kmeans():
     data = pd.read_csv('image_database.csv')
-    X = np.vstack(data["vector"].values).astype(np.object0)
+    X = np.vstack(data["vector"].values).astype(np.object_)
     kmeans_model = load_model_from('kmeans.pickle')
     arr_X = [None] * X.shape[0]
     for i in range(X.shape[0]):
@@ -120,11 +120,14 @@ def init_kmeans():
     kmeans_neighbours.fit(arr_X)
     return kmeans_model, kmeans_neighbours, data
 
-def init_clip():
+def init_clip(data):
     data = pd.read_csv('image_database_clip.csv')
-    X = np.vstack(data["vector"].values)
-    clip_neighbours = NearestNeighbors(metric='cosine', algorithm='brute').astype(np.object0)
-    clip_neighbours.fit(X)
+    X = np.vstack(data["vector"].values).astype(np.object_)
+    arr_X = [None] * X.shape[0]
+    for i in range(X.shape[0]):
+        arr_X[i] = (np.fromstring(X[i][0][1:-1], sep=' '))
+    clip_neighbours = NearestNeighbors(metric='cosine', algorithm='brute')
+    clip_neighbours.fit(arr_X)
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model, preprocess = clip.load("ViT-B/32", device=device)
     return clip_neighbours, model, preprocess, device
